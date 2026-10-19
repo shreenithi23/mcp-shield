@@ -378,5 +378,56 @@ Entries are never deleted; when superseded, their status is updated to `supersed
 - **Why**: Demonstrates attack block rates, false-block rates, and ROC trade-off curves under real-world conditions, validating that OpenJev System One achieves 99.5% attack containment with <1.5% false blocks at sub-millisecond latency.
 - **Status**: accepted
 
+---
 
+### D-026: Frontend Architecture: React 19 + TypeScript (Vite) with Single-Page Plain CSS
+- **Date**: 2026-10-19
+- **Phase**: Frontend Demo Dashboard
+- **Context**: A presentation and live-demo dashboard was required to demonstrate all core capabilities of MCP Shield (OAuth 2.1 AS + PEP, DPoP tokens, intent/injection/poisoning scoring, taint tracking, CIBA approvals, tool integrity pinning, cryptographic audit chain, access.log, and evaluation ROC curves). Simplicity and ease of local reproduction mattered more than polish.
+- **Options Considered**:
+  1. *Next.js / Remix full-stack framework*: Heavier build footprint, SSR complexities, unnecessary backend coupling.
+  2. *Single-Page React + TypeScript with Vite and Plain CSS*: Minimal overhead, fast HMR, zero complex state libraries (Redux/Zustand), no client-side routing library, plain CSS tokens for consistent color semantics (green allow, blue allow-narrower, amber hold, red deny).
+- **Decision**: Adopt Vite + React 19 + TypeScript with plain CSS tokens and Recharts for the ROC curve.
+- **Why**: Keeps total frontend code footprint under ~2,500 lines across 5 focused tab components, `api.ts`, and `types.ts`, ensuring complete clarity and transparency during code reviews and live demonstrations.
+- **Consequences**: Fast local launch via `npm run dev`, single-page switching between 5 tabs without page reloads, and simple configuration via `VITE_API_BASE_URL`.
+- **Status**: accepted
 
+---
+
+### D-027: Polling vs. WebSockets: 2-Second HTTP Polling for Approvals Queue
+- **Date**: 2026-10-19
+- **Phase**: Frontend Demo Dashboard
+- **Context**: The Approvals tab needs to reflect newly held tool calls (e.g. from tainted writes or Tier 3 actions) and status transitions when calls are approved or denied.
+- **Options Considered**:
+  1. *WebSockets / Server-Sent Events (SSE)*: Real-time event push, but requires maintaining connection state, heartbeat handling, reconnect logic, and WebSocket endpoint overhead on the FastAPI backend.
+  2. *2-Second HTTP Polling*: Client periodically fetches `GET /api/console/held` every 2,000ms.
+- **Decision**: Adopt 2-second HTTP polling.
+- **Why**: Eliminates connection dropouts, firewall issues, and proxy framing quirks during live presentations. Request latency is low (<5ms local response) and simplifies frontend lifecycle management.
+- **Consequences**: Approvals queue updates within 2 seconds of any held event without persistent socket state.
+- **Status**: accepted
+
+---
+
+### D-028: Read-Only /demo API Router for Live Presentation & Interactive Negative Testing
+- **Date**: 2026-10-19
+- **Phase**: Frontend Demo Dashboard
+- **Context**: The live frontend requires executing preset scenarios, inspecting session taint metadata, testing negative token rejections (wrong audience, missing DPoP proof), demonstrating audit tampering, and loading pre-computed benchmark curves. The existing backend architecture could not be altered.
+- **Options Considered**:
+  1. *Modify core proxy and OAuth handlers*: Add demo flags and conditional branching inside production security enforcement points.
+  2. *Add a thin /demo FastAPI router*: Wrap existing internal managers (`taint_manager`, `audit_manager`, `tool_registry`, `quota_manager`, `ciba_manager`) without modifying core security enforcement paths.
+- **Decision**: Implement a thin read-only / helper `/demo` router mounted at `/demo/*` in `src/mcp_shield/main.py`.
+- **Endpoints Added**:
+  - `GET /demo/session/{session_id}`: Real-time query of session taint state.
+  - `POST /demo/session/{session_id}/clear-taint`: Clears session taint with administrative audit record.
+  - `GET /demo/scenarios`: Returns metadata for the 4 presets (benign, injection, overreach, quota).
+  - `POST /demo/scenarios/run/{scenario_id}`: Executes preset scenarios through the real PEP pipeline, emitting authentic `access.log` lines and `audit_chain.jsonl` records.
+  - `POST /demo/malicious/rug-pull`: Mutates malicious tool description to trigger live SHA-256 hash mismatch and quarantine.
+  - `POST /demo/malicious/reset`: Resets malicious demo server to clean baseline.
+  - `GET /demo/quotas`: Returns live sliding-window call and rate quota states.
+  - `GET /demo/access-log`: Returns tail of recent `access.log` entries parsed into JSON.
+  - `GET /demo/eval-results`: Returns 300-sample benchmark metrics and ROC coordinates for Recharts.
+  - `POST /demo/audit/tamper`: Tampers with an audit record to demonstrate cryptographic hash chain detection failure.
+  - `POST /demo/audit/restore`: Restores audit chain to pristine state.
+  - `POST /demo/token/test-rejection`: Simulates gateway HTTP 401 rejections for wrong audience and missing DPoP proofs.
+- **Consequences**: Preserves 100% integrity of backend production proxy and OAuth 2.1 code while empowering the frontend demo to run completely end-to-end against live data.
+- **Status**: accepted

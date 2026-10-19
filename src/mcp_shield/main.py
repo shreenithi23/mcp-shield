@@ -49,6 +49,7 @@ app.add_middleware(AccessLoggingMiddleware)
 
 from mcp_shield.console.router import router as console_router
 from mcp_shield.console.ui import ui_router as console_ui_router
+from mcp_shield.demo.router import router as demo_router
 
 # Mount all endpoints
 app.include_router(metadata_router)
@@ -63,6 +64,7 @@ app.include_router(proxy_router)
 app.include_router(ciba_router)
 app.include_router(console_router)
 app.include_router(console_ui_router)
+app.include_router(demo_router)
 
 
 @app.get("/health", tags=["Health"])

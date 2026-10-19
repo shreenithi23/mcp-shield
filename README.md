@@ -212,3 +212,87 @@ The following architectural choices have been recorded in [`decisions.md`](./dec
 - **D-019**: Sensitivity Criteria for Step-Up Multi-Factor Authentication (TOTP / WebAuthn)
 - **D-020**: Generation and Scope of Plain-English Explanations
 - **D-021**: Tool Integrity SHA-256 Description Pinning, Drift Detection, and Quarantine
+- **D-022**: Cryptographic Hash Chaining for Append-Only Audit Integrity
+- **D-023**: Dual-Log Architecture and Continuous Bidirectional Reconciliation
+- **D-024**: RBAC-Gated Admin Console Architecture (Admin, Operator, Auditor Hierarchy)
+- **D-025**: Labeled Threat Benchmark Dataset and Model Calibration Criteria
+- **D-026**: Frontend Architecture: React 19 + TypeScript (Vite) with Single-Page Plain CSS
+- **D-027**: Polling vs. WebSockets: 2-Second HTTP Polling for Approvals Queue
+- **D-028**: Read-Only /demo API Router for Live Presentation & Interactive Negative Testing
+
+---
+
+## Demo Frontend (React + TypeScript + Vite)
+
+The frontend is a lightweight, zero-dependency-bloat Single Page Application built with **Vite, React 19, and TypeScript**. It connects to the live FastAPI backend to demonstrate all zero-trust PEP capabilities in a live presentation or walkthrough.
+
+### Architecture Highlights:
+- **No Complex Routing or State Libraries**: Pure React component state and plain CSS design tokens.
+- **Strict Zero-Leakage Policy**: Decodes JWT claims in the browser client-side; never logs or displays token signatures, GitHub PATs, or client secrets.
+- **Live Backend Data**: 100% of numbers, badges, audit chains, access logs, and evaluation metrics are sourced directly from live backend endpoints.
+- **Standardized Color Semantics**: Green (`ALLOW`), Blue (`ALLOW NARROWER`), Amber (`HOLD`), Red (`DENY`), Crimson (`TAINTED`).
+
+### Running the Full System Locally:
+
+1. **Start Backend Gateway**:
+   ```bash
+   uv run uvicorn mcp_shield.main:app --host 0.0.0.0 --port 8000 --reload
+   ```
+
+2. **Start Frontend Dev Server**:
+   ```bash
+   cd frontend
+   npm install
+   npm run dev
+   ```
+   Open your browser at `http://localhost:5173`. (Configured via `VITE_API_BASE_URL=http://localhost:8000` in `frontend/.env`).
+
+---
+
+## 2-Minute Live Demo Script (Numbered Clicks)
+
+Follow this numbered click path for a seamless, end-to-end presentation of MCP Shield:
+
+1. **Step 1: Authenticate and Register Agent**
+   - On the top header, verify the session badge is green (`● SESSION NORMAL`).
+   - On the **"1. Agent Run"** tab, click **"1. Login (OIDC + PKCE)"**. The current user (`Alice - Platform Engineer`) is authenticated and issued a DPoP-bound token.
+   - Click **"2. Register Agent (DCR)"** to simulate RFC 7591 Dynamic Client Registration, registering `agent_copilot_assistant`.
+
+2. **Step 2: Execute Prompt Injection Scenario**
+   - Click scenario card **"(b) Injection: Real GitHub Issue Payload"**.
+   - Click **"Run Scenario"**.
+   - Observe the step-by-step execution timeline:
+     - **Call #1 (`list_issues`)**: Returns `ALLOW`. AI Checkpoint 2 detects prompt injection (`injection_risk: 0.89`).
+     - **Taint Event**: A prominent red banner triggers: `⚠️ SESSION STATE: TAINTED (READ-ONLY)`. RFC 8693 token exchange downscopes the token to Tier 1 read-only tools.
+     - **Call #2 (`slack_post_message`)**: Status is amber `HOLD` (reason: `tainted_write_held`). Click **"Inspect"** to view model scores and the plain-English explanation.
+     - **Call #3 (`create_or_update_file`)**: Status is red `DENY` (reason: `static_tool_not_granted_in_token`). Escalation blocked!
+
+3. **Step 3: Resolve Held CIBA Approval**
+   - Click tab **"3. Approvals"**.
+   - The held `slack_post_message` call appears immediately in the queue (polled every 2s).
+   - Review proposed arguments and explanation. Enter a 6-digit TOTP code (or leave blank for demo dev secret) and click **"Approve"**.
+   - Notice the call is resolved and the queue clears.
+
+4. **Step 4: Inspect Token Decoded Claims & Negative Tests**
+   - Click tab **"2. Tokens"**.
+   - Observe the live 5-minute countdown timer (`⏱ 4:58`).
+   - Review decoded claims: single-resource `aud` (`https://api.githubcopilot.com/mcp/`), `cnf.jkt` thumbprint, and RFC 9396 `authorization_details`.
+   - Click **"Try token on wrong server"**: Gateway returns `401 Unauthorized` with `Audience mismatch`.
+   - Click **"Replay without DPoP key"**: Gateway returns `401 Unauthorized` with `Missing DPoP proof for bound token`.
+
+5. **Step 5: Inspect Tool Integrity & Simulate Rug Pull**
+   - Click tab **"4. Tools & Policy"**.
+   - Review the table of approved tools with pinned SHA-256 hashes.
+   - Click **"Simulate Rug Pull (Malicious Server)"**: The tool description mutates. MCP Shield flags the hash mismatch, displays elevated `poisoning_risk: 0.96`, and sets status to `QUARANTINED`.
+   - Click **"Admin Re-Approve New Hash"** to demonstrate administrative unquarantine.
+
+6. **Step 6: Cryptographic Audit Verification & Tampering Demo**
+   - Click tab **"5. Logs & Results"** -> **"Cryptographic Audit Log"**.
+   - Click **"Verify Chain"**: Gateway verifies every SHA-256 back-pointer and confirms green `INTEGRITY 100% (OK)`.
+   - Click **"Tamper with Record"**: Simulates malicious file modification on disk. The chain instantly flags `CHAIN INTEGRITY COMPROMISED! (Hash mismatch detected)`.
+   - Click **"Restore Chain"**: Restores pristine state and passes verification.
+
+7. **Step 7: Evaluation Results & ROC Trade-Off Curve**
+   - In tab **"5. Logs & Results"**, click **"Evaluation & ROC Chart"**.
+   - Present the interactive Recharts ROC curve showing OpenJev System One (AUC 0.994), Microsoft-Decision-1 (AUC 0.991), and Baseline (AUC 0.892).
+   - Point out the marked star at operating threshold ($\text{FPR}=1.2\%$, $\text{TPR}=99.5\%$) and benchmark table (sub-millisecond latency, \$0.15/1k calls).
