@@ -43,18 +43,19 @@ def get_sessionmaker() -> async_sessionmaker[AsyncSession]:
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
     """FastAPI dependency for database sessions with resilient SQLite fallback."""
     global _engine, _sessionmaker
-    session_factory = get_sessionmaker()
     try:
-        async with session_factory() as session:
-            yield session
+        session_factory = get_sessionmaker()
+        session = session_factory()
     except Exception:
         if settings.USE_SQLITE_FALLBACK and not settings.DATABASE_URL.startswith("sqlite"):
             _engine = create_async_engine(settings.SQLITE_FALLBACK_URL, echo=False, future=True)
             _sessionmaker = async_sessionmaker(_engine, expire_on_commit=False, class_=AsyncSession)
-            async with _sessionmaker() as session:
-                yield session
+            session = _sessionmaker()
         else:
             raise
+
+    async with session:
+        yield session
 
 
 async def init_db() -> None:

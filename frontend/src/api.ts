@@ -48,17 +48,14 @@ export async function loginUser(
   username: string = "alice_dev",
   role: string = "admin"
 ): Promise<{ user: UserSession; token: string; decoded: DecodedToken | null }> {
-  const form = new URLSearchParams();
-  form.append("grant_type", "client_credentials");
-  form.append("client_id", "agent_copilot_assistant");
-  form.append("client_secret", "sec_demo_credential");
-  form.append("scope", "mcp:tools repo");
-  form.append("resource", "https://api.githubcopilot.com/mcp/");
-
-  const resp = await fetch(`${API_BASE}/oauth/token`, {
+  const resp = await fetch(`${API_BASE}/demo/login`, {
     method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: form.toString(),
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      username,
+      role,
+      client_id: "agent_copilot_assistant",
+    }),
   });
 
   if (!resp.ok) {

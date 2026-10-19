@@ -983,3 +983,62 @@ async def test_token_rejection(test_type: str):
         }
     else:
         raise HTTPException(status_code=400, detail=f"Unknown test_type: {test_type}")
+
+
+# ---------------------------------------------------------------------------
+# 9. Demo Login Helper (Issues valid DPoP-bound RS256 token with tool grants)
+# ---------------------------------------------------------------------------
+
+class DemoLoginRequest(BaseModel):
+    username: Optional[str] = "alice_dev"
+    role: Optional[str] = "admin"
+    client_id: Optional[str] = "agent_copilot_assistant"
+
+
+@router.post("/login", summary="Interactive Demo Login issuing valid DPoP-bound RS256 token")
+async def demo_login(req: Optional[DemoLoginRequest] = None):
+    username = (req.username if req else None) or "alice_dev"
+    role = (req.role if req else None) or "admin"
+    client_id = (req.client_id if req else None) or "agent_copilot_assistant"
+
+    token_jti = str(uuid.uuid4())
+    authz_details = [
+        {
+            "type": "mcp_tool",
+            "server": "https://api.githubcopilot.com/mcp/",
+            "tools": ["list_issues", "issue_read", "create_or_update_file", "delete_file"],
+        },
+        {
+            "type": "mcp_tool",
+            "server": "http://slack-mcp/mcp",
+            "tools": ["slack_post_message", "slack_read_channel"],
+        },
+        {
+            "type": "mcp_tool",
+            "server": "http://postgres-mcp/mcp",
+            "tools": ["postgres_query"],
+        },
+    ]
+
+    token = crypto_manager.sign_access_token(
+        sub="usr_alice",
+        client_id=client_id,
+        aud="https://api.githubcopilot.com/mcp/",
+        task_id="Summarize open issues on repo and post triage update to Slack channel",
+        expires_in=settings.ACCESS_TOKEN_EXPIRE_SECONDS,
+        jti=token_jti,
+        dpop_jkt="vL8n_test_dpop_thumbprint_sha256",
+        authorization_details=authz_details,
+    )
+
+    return {
+        "access_token": token,
+        "token_type": "DPoP",
+        "expires_in": settings.ACCESS_TOKEN_EXPIRE_SECONDS,
+        "scope": "mcp:tools repo",
+        "user": {
+            "sub": "usr_alice",
+            "name": "Alice (Platform Engineer)",
+            "role": role,
+        },
+    }
