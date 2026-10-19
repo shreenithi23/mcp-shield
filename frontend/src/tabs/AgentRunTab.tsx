@@ -28,6 +28,7 @@ interface Props {
   currentTask: string;
   setCurrentTask: (task: string) => void;
   refreshSession: () => Promise<void>;
+  onLogout?: () => void;
 }
 
 export const AgentRunTab: React.FC<Props> = ({
@@ -43,6 +44,7 @@ export const AgentRunTab: React.FC<Props> = ({
   currentTask,
   setCurrentTask,
   refreshSession,
+  onLogout,
 }) => {
   const [selectedScenario, setSelectedScenario] = useState<string>("benign");
   const [loading, setLoading] = useState<boolean>(false);
@@ -190,6 +192,15 @@ export const AgentRunTab: React.FC<Props> = ({
             <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
               <span className="badge badge-normal">Logged In</span>
               <strong>{user.name}</strong> ({user.role})
+              {onLogout && (
+                <button
+                  className="btn-secondary"
+                  style={{ padding: "2px 8px", fontSize: "11px", marginLeft: "4px" }}
+                  onClick={onLogout}
+                >
+                  Logout
+                </button>
+              )}
             </div>
           )}
 

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import type { AgentClient, DecodedToken, UserSession } from "./types";
-import { getSessionStatus, loginUser } from "./api";
+import { getSessionStatus } from "./api";
 import { AgentRunTab } from "./tabs/AgentRunTab";
 import { TokensTab } from "./tabs/TokensTab";
 import { ApprovalsTab } from "./tabs/ApprovalsTab";
@@ -14,26 +14,19 @@ export const App: React.FC = () => {
   const [user, setUser] = useState<UserSession | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [decodedToken, setDecodedToken] = useState<DecodedToken | null>(null);
-  const [agentClient, setAgentClient] = useState<AgentClient | null>({
-    client_id: "agent_copilot_assistant",
-    client_name: "GitHub Copilot Bug Assistant",
-  });
+  const [agentClient, setAgentClient] = useState<AgentClient | null>(null);
   const [sessionId] = useState<string>("session-demo-01");
   const [isTainted, setIsTainted] = useState<boolean>(false);
   const [currentTask, setCurrentTask] = useState<string>(
     "Summarize open issues on repo and post triage update to Slack channel"
   );
 
-  // Auto-login on load so demo is immediately live and populated
-  useEffect(() => {
-    loginUser("alice_dev", "admin")
-      .then((res) => {
-        setUser(res.user);
-        setToken(res.token);
-        setDecodedToken(res.decoded);
-      })
-      .catch((e) => console.log("Initial auto-login waiting for user:", e));
-  }, []);
+  const handleLogout = () => {
+    setUser(null);
+    setToken(null);
+    setDecodedToken(null);
+    setAgentClient(null);
+  };
 
   const refreshSession = async () => {
     try {
@@ -110,6 +103,15 @@ export const App: React.FC = () => {
             <span style={{ fontSize: "10px", background: "#1e293b", padding: "1px 5px", borderRadius: "3px", color: "var(--text-muted)" }}>
               {user?.role || "guest"}
             </span>
+            {user && (
+              <button
+                className="btn-secondary"
+                style={{ padding: "2px 8px", fontSize: "11px", marginLeft: "4px" }}
+                onClick={handleLogout}
+              >
+                Logout
+              </button>
+            )}
           </div>
         </div>
       </header>
@@ -213,6 +215,7 @@ export const App: React.FC = () => {
             currentTask={currentTask}
             setCurrentTask={setCurrentTask}
             refreshSession={refreshSession}
+            onLogout={handleLogout}
           />
         )}
 
